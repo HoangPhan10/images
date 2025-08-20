@@ -1,0 +1,40 @@
+Ensure That the Log Metric Filter and Alerts Exist for VPC Network Changes
+
+Description: Một dự án có thể chứa nhiều VPC khác nhau. Ngoài ra, cũng có thể thiết lập kết nối ngang hàng (peer connection) giữa hai VPC, cho phép lưu lượng mạng được định tuyến qua lại giữa các VPC.
+
+Solution: thiết lập bộ lọc metric và cảnh báo để giám sát các thay đổi trong mạng Virtual Private Cloud (VPC). Việc giám sát các thay đổi trong VPC sẽ giúp đảm bảo rằng luồng lưu lượng mạng không bị gián đoạn hoặc ảnh hưởng
+
+Prowler Scan:
+code : prowler gcp --check logging_log_metric_filter_and_alert_for_vpc_network_changes_enabled
+image9.1
+image9.2
+
+Terraform: 
+resource "google_logging_metric" "my_vpc_network_change_metric" {
+  name        = "my_vpc_network_change_metric"
+  filter      = "resource.type=\"gce_network\" AND (protoPayload.methodName:\"compute.networks.insert\" OR protoPayload.methodName:\"compute.networks.patch\" OR protoPayload.methodName:\"compute.networks.delete\" OR protoPayload.methodName:\"compute.networks.removePeering\" OR protoPayload.methodName:\"compute.networks.addPeering\")"
+  description = "..."
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+  }
+}
+
+resource "google_monitoring_alert_policy" "alert_vpc_network_change_policy" {
+  display_name = "My Alert Policy VPC Network Change"
+  combiner     = "OR"
+  conditions {
+    display_name = "test condition"
+    condition_threshold {
+      filter          = "metric.type=\"logging.googleapis.com/user/my_vpc_network_change_metric\" AND resource.type=\"global\""
+      duration        = "0s"
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+    }
+  }
+  notification_channels = [
+    google_monitoring_notification_channel.email_channel.id
+  ]
+}
+
+image9.3

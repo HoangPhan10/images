@@ -1,0 +1,37 @@
+Ensure That the Log Metric Filter and Alerts Exist for Cloud Storage IAM Permission Changes
+
+description: Việc giám sát các thay đổi quyền truy cập trên Cloud Storage Bucket có thể giúp giảm thời gian phát hiện và khắc phục các quyền không phù hợp đối với các bucket lưu trữ nhạy cảm cũng như các đối tượng bên trong bucket.
+solution: Thiết lập bộ lọc metric và cảnh báo cho các thay đổi IAM trên Cloud Storage Bucket.
+
+code: prowler gcp --check logging_log_metric_filter_and_alert_for_bucket_permission_changes_enabled
+image8.1
+image8.2
+Terraform:
+resource "google_logging_metric" "my_cs_iam_permission_change_metric" {
+  name        = "my_cs_iam_permission_change_metric"
+  filter      = "resource.type=\"gcs_bucket\" AND protoPayload.methodName=\"storage.setIamPermissions\""
+  description = "..."
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+  }
+}
+
+resource "google_monitoring_alert_policy" "alert_cs_iam_permission_change_policy" {
+  display_name = "My Alert Policy CS Iam Permission Change"
+  combiner     = "OR"
+  conditions {
+    display_name = "test condition"
+    condition_threshold {
+      filter          = "metric.type=\"logging.googleapis.com/user/my_cs_iam_permission_change_metric\" AND resource.type=\"gcs_bucket\""
+      duration        = "0s"
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+    }
+  }
+  notification_channels = [
+    google_monitoring_notification_channel.email_channel.id
+  ]
+}
+
+image8.3

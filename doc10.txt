@@ -1,0 +1,40 @@
+Ensure That the Log Metric Filter and Alerts Exist for VPC Network Firewall Rule Changes
+
+Description: Việc theo dõi các sự kiện tạo mới hoặc cập nhật quy tắc tường lửa giúp cung cấp cái nhìn sâu hơn về các thay đổi quyền truy cập mạng, đồng thời có thể rút ngắn thời gian phát hiện các hoạt động đáng ngờ.
+
+Solution: Thiết lập bộ lọc metric và cảnh báo để giám sát các thay đổi trong quy tắc tường lửa của mạng Virtual Private Cloud (VPC).
+
+Prowler Scan:
+code: prowler gcp --check logging_log_metric_filter_and_alert_for_vpc_firewall_rule_changes_enabled
+image10.1
+image10.2
+
+Terraform:
+resource "google_logging_metric" "my_vpc_network_firewall_rule_change_metric" {
+  name        = "my_vpc_network_firewall_rule_change_metric"
+  filter      = "resource.type=\"gce_firewall_rule\" AND (protoPayload.methodName:\"compute.firewalls.patch\" OR protoPayload.methodName:\"compute.firewalls.insert\" OR protoPayload.methodName:\"compute.firewalls.delete\")"
+  description = "..."
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+  }
+}
+
+resource "google_monitoring_alert_policy" "alert_vpc_network_firewall_rule_change_policy" {
+  display_name = "My Alert Policy VPC Network Firewall Rule Change"
+  combiner     = "OR"
+  conditions {
+    display_name = "test condition"
+    condition_threshold {
+      filter          = "metric.type=\"logging.googleapis.com/user/my_vpc_network_firewall_rule_change_metric\" AND resource.type=\"global\""
+      duration        = "0s"
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+    }
+  }
+  notification_channels = [
+    google_monitoring_notification_channel.email_channel.id
+  ]
+}
+
+image10.3

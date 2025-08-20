@@ -1,0 +1,39 @@
+Ensure That the Log Metric Filter and Alerts Exist for VPC Network Route Changes
+
+Description: Trên Google Cloud Platform (GCP), các tuyến mạng (routes) xác định đường đi của lưu lượng mạng từ một máy ảo (VM instance) đến một điểm đích khác. Điểm đích này có thể nằm trong cùng mạng VPC của tổ chức (ví dụ: một VM khác) hoặc nằm ngoài mạng đó. Mỗi tuyến bao gồm một địa chỉ đích và một điểm chuyển tiếp tiếp theo (next hop). Lưu lượng có địa chỉ IP nằm trong phạm vi đích sẽ được chuyển đến điểm next hop để truyền tải.
+Solution: Khuyến nghị thiết lập bộ lọc metric và cảnh báo để giám sát các thay đổi trong bảng định tuyến của mạng Virtual Private Cloud (VPC). Việc giám sát các thay đổi trong bảng định tuyến sẽ giúp đảm bảo rằng lưu lượng mạng trong VPC luôn đi theo đúng lộ trình mong muốn.
+
+Prowler Scan:
+code: prowler gcp --check logging_log_metric_filter_and_alert_for_vpc_network_route_changes_enabled
+image11.1
+image11.2
+
+Terraform:
+resource "google_logging_metric" "my_vpc_network_route_change_metric" {
+  name        = "my_vpc_network_route_change_metric"
+  filter      = "resource.type=\"gce_route\" AND (protoPayload.methodName:\"compute.routes.delete\" OR protoPayload.methodName:\"compute.routes.insert\")"
+  description = "..."
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+  }
+}
+
+resource "google_monitoring_alert_policy" "alert_vpc_network_route_change_policy" {
+  display_name = "My Alert Policy VPC Network Route Change"
+  combiner     = "OR"
+  conditions {
+    display_name = "test condition"
+    condition_threshold {
+      filter          = "metric.type=\"logging.googleapis.com/user/my_vpc_network_route_change_metric\" AND resource.type=\"global\""
+      duration        = "0s"
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+    }
+  }
+  notification_channels = [
+    google_monitoring_notification_channel.email_channel.id
+  ]
+}
+
+image11.3
